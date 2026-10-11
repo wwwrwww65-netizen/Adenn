@@ -586,9 +586,11 @@ $(if chap-id)
 <input type="hidden" name="dst" value="$(link-orig)" />
 <input type="hidden" name="popup" value="true" />
 </form>
-$(endif)
 <script>
 function doLogin() {
+  if (typeof remember === "function") {
+    try { remember(); } catch (eRem) {}
+  }
   var uInput = document.login.username;
   if (!uInput || !uInput.value || uInput.value.trim().length === 0) {
     var errEl = document.getElementById("error");
@@ -599,34 +601,47 @@ function doLogin() {
     return false;
   }
 
-  if (typeof remember === "function") {
-    try { remember(); } catch (eRem) {}
-  }
-
   var rawCard = uInput.value.trim();
   var cleanCard = rawCard.replace(/@(512K|1M|2M|4M|8M|12M|[0-9]+[KMkm])$/i, "");
   var sInput = document.login.speed;
   var speedVal = sInput ? sInput.value : "";
   var fullUser = speedVal ? (cleanCard + speedVal) : cleanCard;
 
-  var chapId = "$(chap-id)";
-  var chapChal = "$(chap-challenge)";
-  var isChap = chapId && chapId.indexOf("$(") === -1 && chapChal && chapChal.indexOf("$(") === -1;
-
-  if (isChap && typeof hexMD5 === "function" && document.sendin) {
-    document.sendin.username.value = fullUser;
-    var pwdVal = document.login.password ? document.login.password.value : "";
-    document.sendin.password.value = hexMD5(chapId + pwdVal + chapChal);
-    document.sendin.submit();
-    return false;
+  document.sendin.username.value = fullUser;
+  var pwdVal = document.login.password ? document.login.password.value : "";
+  document.sendin.password.value = hexMD5('$(chap-id)' + pwdVal + '$(chap-challenge)');
+  document.sendin.submit();
+  return false;
+}
+</script>
+$(endif)
+<script>
+if (typeof doLogin !== 'function') {
+  function doLogin() {
+    if (typeof remember === "function") {
+      try { remember(); } catch (eRem) {}
+    }
+    var uInput = document.login.username;
+    if (!uInput || !uInput.value || uInput.value.trim().length === 0) {
+      var errEl = document.getElementById("error");
+      if (errEl) {
+        errEl.innerText = "يجب ادخال قيمة صحيحة!";
+        if (typeof showErrorPopup === "function") showErrorPopup();
+      }
+      return false;
+    }
+    var rawCard = uInput.value.trim();
+    var cleanCard = rawCard.replace(/@(512K|1M|2M|4M|8M|12M|[0-9]+[KMkm])$/i, "");
+    var sInput = document.login.speed;
+    var speedVal = sInput ? sInput.value : "";
+    var fullUser = speedVal ? (cleanCard + speedVal) : cleanCard;
+    uInput.value = fullUser;
+    var act = document.login.getAttribute("action");
+    if (!act || act.indexOf("$(") !== -1) {
+      document.login.action = "/login";
+    }
+    return true;
   }
-
-  uInput.value = fullUser;
-  var act = document.login.getAttribute("action");
-  if (!act || act.indexOf("$(") !== -1) {
-    document.login.action = "/login";
-  }
-  return true;
 }
 </script>
 <form class="login-form" name="login" action="$(link-login-only)" method="post" onSubmit="return doLogin();">
@@ -681,7 +696,7 @@ parent-id="speed-modal" aria-label="تحديد سرعة الإنترنت">
 d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
 </svg>
 </span>
-<input name="username" class="login-input" placeholder="ادخل رقم الكرت هنا"
+<input name="username" class="login-input" value="$(username)" placeholder="ادخل رقم الكرت هنا"
 username-field improve-input autocomplete="off" enterkeyhint="go"
 inputmode="text">
 <div class="input-inner-actions">

@@ -1,6 +1,9 @@
 $(if var == "")<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+$(if refresh-timeout)
+<meta http-equiv="refresh" content="$(refresh-timeout-secs)">
+$(endif)
 <meta charset="UTF-8">
 <meta http-equiv="pragma" content="no-cache">
 <meta http-equiv="expires" content="-1">
@@ -135,21 +138,12 @@ function instantLogoutAction(isErase, btnEl) {
     } catch (e) {}
   }
 
-  // للتأكد التام من قطع اتصال الإنترنت في سيرفر ميكروتك على الفور:
-  // نقوم بإرسال طلب فوري إلى رابط الخروج بالإضافة لتسليم الفورم رسمياً
   if (!isDevOrLocal) {
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', targetUrl, false);
-      xhr.send(null);
-    } catch (eXHR) {}
-
     var form = document.getElementById('logoutForm') || document.forms['logout'];
     if (form) {
       form.action = targetUrl;
-      form.submit();
-      return false;
     }
+    return true;
   }
 
   setTimeout(function() {
@@ -701,16 +695,6 @@ function selectStatusSpeed(val) {
       } else {
         localStorage.setItem('hotspot_speed', val);
       }
-      var logoutReq = new XMLHttpRequest();
-      logoutReq.open('GET', '/logout?var=callBack&_t=' + Date.now(), true);
-      logoutReq.onreadystatechange = function() {
-        if (logoutReq.readyState === 4) {
-          var loginReq = new XMLHttpRequest();
-          loginReq.open('GET', '/login?username=' + encodeURIComponent(cleanCard + val) + '&password=' + encodeURIComponent(pass) + '&var=callBack&_t=' + Date.now(), true);
-          loginReq.send();
-        }
-      };
-      logoutReq.send();
     }
   } catch (e) {}
 }
@@ -803,59 +787,6 @@ function goToLoginManual() {
   return false;
 }
 
-// تحديث تلقائي صامت في الخلفية لبيانات الاستهلاك والرصيد والوقت المتبقي كل 3 ثوانٍ دون أي إعادة تحميل أو وميض
-(function startLiveStatusPolling() {
-  var isMikrotikLive = '$(logged-in)';
-  if (!isMikrotikLive || isMikrotikLive.indexOf('$(') !== -1) return;
-  setInterval(function() {
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', '/status?var=callBack&_t=' + Date.now(), true);
-      xhr.timeout = 4000;
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText) {
-          try {
-            var data = JSON.parse(xhr.responseText);
-            if (!data) return;
-            if (data.logged_in === 'no' || data.logged_in === false) {
-              var loginTarget = '$(link-login)';
-              if (!loginTarget || loginTarget.indexOf('$(') !== -1) loginTarget = 'login.html';
-              window.location.replace(loginTarget);
-              return;
-            }
-            if (data.bytes_out !== void 0) {
-              var elOut = document.getElementById('bytes_out');
-              if (elOut) elOut.textContent = toArabicBytes(data.bytes_out);
-            }
-            if (data.bytes_in !== void 0) {
-              var elIn = document.getElementById('bytes_in');
-              if (elIn) elIn.textContent = toArabicBytes(data.bytes_in);
-            }
-            if (data.remain_bytes_total !== void 0) {
-              var elRem = document.getElementById('remain_bytes_total');
-              if (elRem) {
-                var rVal = String(data.remain_bytes_total).trim();
-                elRem.textContent = (!rVal || rVal === '-' || rVal.indexOf('$(') !== -1) ? 'مفتوح' : toArabicBytes(rVal);
-              }
-            }
-            if (data.uptime !== void 0) {
-              var elUp = document.getElementById('uptime');
-              if (elUp) elUp.textContent = toArabicTime(data.uptime);
-            }
-            if (data.session_time_left !== void 0) {
-              var elLeft = document.getElementById('session_time_left');
-              if (elLeft) {
-                var sVal = String(data.session_time_left).trim();
-                elLeft.textContent = (!sVal || sVal === '-' || sVal.indexOf('$(') !== -1) ? 'مفتوح' : toArabicTime(sVal);
-              }
-            }
-          } catch (eParse) {}
-        }
-      };
-      xhr.send();
-    } catch (ePoll) {}
-  }, 3000);
-})();
 
 window.Config = function(cfg) {
   if (!cfg) return;
