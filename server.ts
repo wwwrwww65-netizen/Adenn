@@ -77,6 +77,7 @@ function renderMikrotikTemplate(filePath: string, state: typeof sessionState): s
   content = content.replace(/\$\(if refresh-timeout\)([\s\S]*?)\$\(endif\)/g, '');
   content = content.replace(/\$\(if domain\)([\s\S]*?)\$\(else\)([\s\S]*?)\$\(endif\)/g, state.speed ? '$1' : '$2');
   content = content.replace(/\$\(if error\)([\s\S]*?)\$\(endif\)/g, '');
+  content = content.replace(/\$\(if chap-id\)([\s\S]*?)\$\(endif\)/g, '$1');
 
   // Replace MikroTik variables
   content = content.replace(/\$\(username\)/g, state.isLoggedIn ? state.username : '');

@@ -103,11 +103,13 @@ function instantLogoutAction(isErase, btnEl) {
     sessionStorage.setItem('logout_action_type', actionVal);
     localStorage.setItem('logout_action_type', actionVal);
     document.cookie = 'logout_action_type=' + actionVal + ';path=/';
+    sessionStorage.setItem('prevent_auto_login', '1');
     sessionStorage.removeItem('hotspot_is_logged_in');
     sessionStorage.removeItem('hotspot_status_instant');
     localStorage.removeItem('hotspot_is_logged_in');
     document.cookie = 'hotspot_is_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     if (isErase) {
+      if (typeof clearCookies === 'function') clearCookies();
       var keys = ['username', 'speed', 'password'];
       for (var i = 0; i < keys.length; i++) {
         document.cookie = keys[i] + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
@@ -118,9 +120,13 @@ function instantLogoutAction(isErase, btnEl) {
       localStorage.removeItem('hotspot_password');
     }
   } catch (e) {}
-  var logoutBase = '$(link-logout)';
-  if (!logoutBase || logoutBase.indexOf('$(') !== -1) logoutBase = 'logout.html';
-  var targetUrl = isErase ? (logoutBase + (logoutBase.indexOf('?') === -1 ? '?erase-cookie=on' : '&erase-cookie=on')) : logoutBase;
+
+  var logoutTarget = '$(link-logout)';
+  var isDevOrLocal = !logoutTarget || logoutTarget.indexOf('$(') !== -1;
+  var targetUrl = isDevOrLocal 
+    ? (isErase ? 'logout.html?erase-cookie=on' : 'logout.html')
+    : (isErase ? (logoutTarget + (logoutTarget.indexOf('?') === -1 ? '?erase-cookie=on' : '&erase-cookie=on')) : logoutTarget);
+
   if (window.name === 'hotspot_status') {
     try {
       open(targetUrl, 'hotspot_logout', 'toolbar=0,location=0,directories=0,status=0,menubars=0,resizable=1,width=280,height=250');
@@ -128,6 +134,24 @@ function instantLogoutAction(isErase, btnEl) {
       return false;
     } catch (e) {}
   }
+
+  // للتأكد التام من قطع اتصال الإنترنت في سيرفر ميكروتك على الفور:
+  // نقوم بإرسال طلب فوري إلى رابط الخروج بالإضافة لتسليم الفورم رسمياً
+  if (!isDevOrLocal) {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', targetUrl, false);
+      xhr.send(null);
+    } catch (eXHR) {}
+
+    var form = document.getElementById('logoutForm') || document.forms['logout'];
+    if (form) {
+      form.action = targetUrl;
+      form.submit();
+      return false;
+    }
+  }
+
   setTimeout(function() {
     window.location.href = targetUrl;
   }, 8);

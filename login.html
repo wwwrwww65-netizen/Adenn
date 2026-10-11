@@ -149,10 +149,16 @@ var hash = window.location.hash || '';
 
 // If already logged in, redirect to dedicated status.html
 if (mtState && mtState.logged_in === 'yes') {
-  var statusUrl = (mtState && mtState.link_status) ? mtState.link_status : 'status.html';
-  if (!statusUrl || statusUrl.indexOf('$(') !== -1) statusUrl = 'status.html';
-  window.location.replace(statusUrl);
-  return;
+  var isPrevent = false;
+  try {
+    isPrevent = sessionStorage.getItem('prevent_auto_login') === '1' || sessionStorage.getItem('logout_action_type') === 'disconnect' || (document.referrer && document.referrer.indexOf('logout') !== -1);
+  } catch(e) {}
+  if (!isPrevent) {
+    var statusUrl = (mtState && mtState.link_status) ? mtState.link_status : 'status.html';
+    if (!statusUrl || statusUrl.indexOf('$(') !== -1) statusUrl = 'status.html';
+    window.location.replace(statusUrl);
+    return;
+  }
 }
 
 if (search.indexOf('logged=no') !== -1 || (mtState && mtState.logged_in === 'no')) {
@@ -573,7 +579,59 @@ d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.
 </div>
 </div>
 <div class="login-card">
-<form class="login-form" name="login" onsubmit="return false;">
+$(if chap-id)
+<form name="sendin" action="$(link-login-only)" method="post" style="display:none">
+<input type="hidden" name="username" />
+<input type="hidden" name="password" />
+<input type="hidden" name="dst" value="$(link-orig)" />
+<input type="hidden" name="popup" value="true" />
+</form>
+$(endif)
+<script>
+function doLogin() {
+  var uInput = document.login.username;
+  if (!uInput || !uInput.value || uInput.value.trim().length === 0) {
+    var errEl = document.getElementById("error");
+    if (errEl) {
+      errEl.innerText = "يجب ادخال قيمة صحيحة!";
+      if (typeof showErrorPopup === "function") showErrorPopup();
+    }
+    return false;
+  }
+
+  if (typeof remember === "function") {
+    try { remember(); } catch (eRem) {}
+  }
+
+  var rawCard = uInput.value.trim();
+  var cleanCard = rawCard.replace(/@(512K|1M|2M|4M|8M|12M|[0-9]+[KMkm])$/i, "");
+  var sInput = document.login.speed;
+  var speedVal = sInput ? sInput.value : "";
+  var fullUser = speedVal ? (cleanCard + speedVal) : cleanCard;
+
+  var chapId = "$(chap-id)";
+  var chapChal = "$(chap-challenge)";
+  var isChap = chapId && chapId.indexOf("$(") === -1 && chapChal && chapChal.indexOf("$(") === -1;
+
+  if (isChap && typeof hexMD5 === "function" && document.sendin) {
+    document.sendin.username.value = fullUser;
+    var pwdVal = document.login.password ? document.login.password.value : "";
+    document.sendin.password.value = hexMD5(chapId + pwdVal + chapChal);
+    document.sendin.submit();
+    return false;
+  }
+
+  uInput.value = fullUser;
+  var act = document.login.getAttribute("action");
+  if (!act || act.indexOf("$(") !== -1) {
+    document.login.action = "/login";
+  }
+  return true;
+}
+</script>
+<form class="login-form" name="login" action="$(link-login-only)" method="post" onSubmit="return doLogin();">
+<input type="hidden" name="dst" value="$(link-orig)" />
+<input type="hidden" name="popup" value="true" />
 <div class="speed-selector-group" style="margin-bottom: 14px;">
 <div class="speed-header">
 <span class="speed-title">
@@ -643,8 +701,8 @@ title="دخول بكرت سابق" aria-label="دخول بكرت سابق">
 <input type="hidden" name="password" class="login-input"
 placeholder="ادخل كلمة السر هنا" improve-input>
 </div>
-<button class="button login-submit login-submit-btn" parent-id="status" enable-hot-cookie
-type="button" id="mainLoginBtn">
+<button class="button login-submit login-submit-btn" enable-hot-cookie
+type="submit" id="mainLoginBtn">
 <span class="button-text">تسجيل الدخول</span>
 </button>
 </form>
@@ -2718,27 +2776,13 @@ var usernameInput = document.login.querySelector("input[name='username']");
 if (usernameInput) {
 usernameInput.addEventListener('keydown', function (e) {
 if (e.key === 'Enter' || e.keyCode === 13) {
-e.preventDefault();
 var mainBtn = document.getElementById('mainLoginBtn') || document.querySelector('.login-submit');
 if (mainBtn) {
 mainBtn.click();
-} else if (typeof onLoginSubmitted === 'function') {
-onLoginSubmitted();
 }
 }
 });
 }
-document.login.addEventListener('submit', function (e) {
-e.preventDefault();
-var mainBtn = document.getElementById('mainLoginBtn') || document.querySelector('.login-submit');
-if (mainBtn) {
-mainBtn.click();
-} else if (typeof onLoginSubmitted === 'function') {
-onLoginSubmitted();
-}
-setTimeout(resetWindowScrollToTop, 100);
-setTimeout(resetWindowScrollToTop, 350);
-});
 }
 window.addEventListener('pageshow', resetWindowScrollToTop);
 window.addEventListener('hashchange', resetWindowScrollToTop);
